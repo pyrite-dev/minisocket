@@ -41,9 +41,9 @@ int main(int argc, char** argv) {
 				free(old);
 			}
 		}
-	
+
 		ms_destroy(net);
-	
+
 		printf("%s\n", buffer);
 		free(buffer);
 	}

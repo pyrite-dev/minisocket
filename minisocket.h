@@ -83,10 +83,10 @@ enum MS_STATES {
  * @brief Seek position
  */
 typedef struct ms_buffer {
-	void* data;
+	void*  data;
 	size_t size;
 	size_t _size;
-	int seek;
+	int    seek;
 } ms_buffer_t;
 
 /**
@@ -128,17 +128,17 @@ typedef struct ms_buffer {
  * @brief Length for address list
  */
 typedef struct ms_interface {
-	int port;
-	int sock;
-	int state;
-	int tcp;
+	int	      port;
+	int	      sock;
+	int	      state;
+	int	      tcp;
 	ms_buffer_t** wqueue;
 	ms_buffer_t** rqueue;
 
 	ms_u32* address;
-	int index;
-	time_t last;
-	int length;
+	int	index;
+	time_t	last;
+	int	length;
 } ms_interface_t;
 
 /**
@@ -237,7 +237,7 @@ MSDEF int ms_socket(const char* type);
 
 #define _MS_IS_FINE_ERROR(x) ((x) == _MS_EWOULDBLOCK || (x) == _MS_EINPROGRESS)
 
-static void ms_non_block(int sock){
+static void ms_non_block(int sock) {
 	/* TODO: what is difference between this and fcntl O_NONBLOCK/O_NDELAY? */
 #ifdef _WIN32
 	u_long val = 1;
@@ -248,7 +248,7 @@ static void ms_non_block(int sock){
 #endif
 }
 
-static void ms_close(int sock){
+static void ms_close(int sock) {
 #ifdef _WIN32
 	closesocket(sock);
 #else
@@ -256,21 +256,21 @@ static void ms_close(int sock){
 #endif
 }
 
-static ms_interface_t* ms_init(const char* host, int port){
+static ms_interface_t* ms_init(const char* host, int port) {
 	struct hostent* h;
 	int		i;
 #ifdef _WIN32
 	int s;
 #endif
-	ms_interface_t*	r = malloc(sizeof(*r));
+	ms_interface_t* r = malloc(sizeof(*r));
 	memset(r, 0, sizeof(*r));
 
 #ifdef _WIN32
 	s = ms_socket("tcp");
-	if(s == -1 && ms_get_error() == WSANOTINITIALISED){
+	if(s == -1 && ms_get_error() == WSANOTINITIALISED) {
 		WSADATA wsa;
 		WSAStartup(MAKEWORD(1, 1), &wsa);
-	}else{
+	} else {
 		ms_close(s);
 	}
 #endif
@@ -283,17 +283,17 @@ static ms_interface_t* ms_init(const char* host, int port){
 
 	r->sock = -1;
 
-	r->state	   = MS_STATE_PRE_CONNECT;
-	r->port		   = port;
+	r->state = MS_STATE_PRE_CONNECT;
+	r->port	 = port;
 
 	r->index = 0;
 
 	for(i = 0; h->h_addr_list[i] != NULL; i++);
 	r->address = malloc(sizeof(*r->address) * i);
-	r->length = i;
+	r->length  = i;
 
 	for(i = 0; h->h_addr_list[i] != NULL; i++) {
-		ms_u32 addr = *(ms_u32*)h->h_addr_list[i];
+		ms_u32 addr   = *(ms_u32*)h->h_addr_list[i];
 		r->address[i] = addr;
 	}
 
@@ -301,42 +301,42 @@ static ms_interface_t* ms_init(const char* host, int port){
 	r->rqueue = NULL;
 }
 
-static int ms_buffer_length(ms_buffer_t*** list){
+static int ms_buffer_length(ms_buffer_t*** list) {
 	int i;
 	if((*list) == NULL) return 0;
 	for(i = 0; (*list)[i] != NULL; i++);
 	return i;
 }
 
-static void ms_add_buffer(ms_buffer_t*** list, ms_buffer_t* buf){
+static void ms_add_buffer(ms_buffer_t*** list, ms_buffer_t* buf) {
 	ms_buffer_t** old = *list;
-	int i;
-	int c = ms_buffer_length(list);
-	if(old == NULL){
-		*list = malloc(sizeof(*old) * 2);
+	int	      i;
+	int	      c = ms_buffer_length(list);
+	if(old == NULL) {
+		*list	   = malloc(sizeof(*old) * 2);
 		(*list)[0] = buf;
 		(*list)[1] = NULL;
 		return;
 	}
 
 	*list = malloc(sizeof(*old) * (c + 2));
-	for(i = 0; old[i] != NULL; i++){
+	for(i = 0; old[i] != NULL; i++) {
 		(*list)[i] = old[i];
 	}
-	(*list)[i] = buf;
+	(*list)[i]     = buf;
 	(*list)[i + 1] = NULL;
 
 	free(old);
 }
 
-static void ms_buffer_delete(ms_buffer_t*** list){
+static void ms_buffer_delete(ms_buffer_t*** list) {
 	ms_buffer_t** old = *list;
-	int i;
-	int c = ms_buffer_length(list) - 1;
+	int	      i;
+	int	      c = ms_buffer_length(list) - 1;
 
 	*list = malloc(sizeof(*old) * (c + 1));
 
-	for(i = 1; old[i] != NULL; i++){
+	for(i = 1; old[i] != NULL; i++) {
 		(*list)[i - 1] = old[i];
 	}
 	(*list)[c] = NULL;
@@ -344,7 +344,7 @@ static void ms_buffer_delete(ms_buffer_t*** list){
 	free(old);
 }
 
-MSDEF int ms_socket(const char* type){
+MSDEF int ms_socket(const char* type) {
 	int sock = -1;
 	int v;
 	if(strcmp(type, "tcp") == 0) {
@@ -405,10 +405,10 @@ MSDEF int ms_get_error(void) {
 
 MSDEF ms_buffer_t* ms_wbuffer(ms_interface_t* net, size_t size) {
 	ms_buffer_t* r = malloc(sizeof(*r));
-	r->data		       = malloc(size);
-	r->size		       = size;
-	r->_size	       = size;
-	r->seek		       = 0;
+	r->data	       = malloc(size);
+	r->size	       = size;
+	r->_size       = size;
+	r->seek	       = 0;
 
 	ms_add_buffer(&net->wqueue, r);
 
@@ -417,10 +417,10 @@ MSDEF ms_buffer_t* ms_wbuffer(ms_interface_t* net, size_t size) {
 
 MSDEF ms_buffer_t* ms_rbuffer(ms_interface_t* net, size_t size) {
 	ms_buffer_t* r = malloc(sizeof(*r));
-	r->data		       = malloc(size);
-	r->size		       = size;
-	r->_size	       = size;
-	r->seek		       = 0;
+	r->data	       = malloc(size);
+	r->size	       = size;
+	r->_size       = size;
+	r->seek	       = 0;
 
 	ms_add_buffer(&net->rqueue, r);
 
@@ -430,7 +430,7 @@ MSDEF ms_buffer_t* ms_rbuffer(ms_interface_t* net, size_t size) {
 MSDEF void ms_destroy(ms_interface_t* net) {
 	if(net->rqueue != NULL) {
 		int i;
-		for(i = 0; net->rqueue[i] != NULL; i++){
+		for(i = 0; net->rqueue[i] != NULL; i++) {
 			free(net->rqueue[i]->data);
 			free(net->rqueue[i]);
 		}
@@ -438,7 +438,7 @@ MSDEF void ms_destroy(ms_interface_t* net) {
 	}
 	if(net->wqueue != NULL) {
 		int i;
-		for(i = 0; net->wqueue[i] != NULL; i++){
+		for(i = 0; net->wqueue[i] != NULL; i++) {
 			free(net->wqueue[i]->data);
 			free(net->wqueue[i]);
 		}
@@ -489,8 +489,8 @@ MSDEF int ms_step(ms_interface_t* net) {
 		st = connect(net->sock, (struct sockaddr*)&addr, sizeof(addr));
 		r  = ms_get_error();
 		if(st >= 0 || (_MS_IS_FINE_ERROR(r) || r == _MS_EINTR)) {
-			net->state	    = MS_STATE_CONNECT;
-			net->last = time(NULL);
+			net->state = MS_STATE_CONNECT;
+			net->last  = time(NULL);
 		}
 	} else if(net->state == MS_STATE_CONNECT) {
 		/* HACK: unreadable */
@@ -532,8 +532,8 @@ MSDEF int ms_step(ms_interface_t* net) {
 		}
 	} else if(net->state == MS_STATE_WRITE) {
 		ms_buffer_t* buf = net->wqueue[0];
-		int		     s	 = send(net->sock, (unsigned char*)buf->data + buf->seek, buf->_size - buf->seek, 0);
-		int		     r	 = 0;
+		int	     s	 = send(net->sock, (unsigned char*)buf->data + buf->seek, buf->_size - buf->seek, 0);
+		int	     r	 = 0;
 		if(s < 0) r = ms_get_error();
 		if((s < 0 && !_MS_IS_FINE_ERROR(r)) || s == 0) {
 			buf->size  = buf->seek;
@@ -554,8 +554,8 @@ MSDEF int ms_step(ms_interface_t* net) {
 		net->state = st;
 	} else if(net->state == MS_STATE_READ) {
 		ms_buffer_t* buf = net->rqueue[0];
-		int		     s	 = recv(net->sock, (unsigned char*)buf->data + buf->seek, buf->_size - buf->seek, 0);
-		int		     r	 = 0;
+		int	     s	 = recv(net->sock, (unsigned char*)buf->data + buf->seek, buf->_size - buf->seek, 0);
+		int	     r	 = 0;
 		if(s < 0) r = ms_get_error();
 		if((s < 0 && !_MS_IS_FINE_ERROR(r)) || s == 0) {
 			buf->size  = buf->seek;
