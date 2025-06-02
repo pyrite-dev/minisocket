@@ -215,6 +215,11 @@ MSDEF int ms_socket(const char* type);
 #define _MS_EINTR WSAEINTR
 #define _MS_EWOULDBLOCK WSAEWOULDBLOCK
 #else
+#ifdef __OS2__
+#include <types.h>
+#include <sys/time.h>
+#endif
+
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
@@ -299,6 +304,8 @@ static ms_interface_t* ms_init(const char* host, int port) {
 
 	r->wqueue = NULL;
 	r->rqueue = NULL;
+
+	return r;
 }
 
 static int ms_buffer_length(ms_buffer_t*** list) {
