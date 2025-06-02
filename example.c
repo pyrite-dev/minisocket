@@ -17,9 +17,9 @@ int main(int argc, char** argv) {
 	if(net != NULL) {
 		char*  buffer = malloc(1);
 		size_t sz     = 0;
+		char req[1024];
 		buffer[0]     = 0;
 
-		char req[1024];
 		req[0] = 0;
 		strcat(req, "GET / HTTP/1.0\r\nHost: ");
 		strcat(req, argv[1]);
