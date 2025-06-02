@@ -355,8 +355,6 @@ static void ms_buffer_delete(ms_buffer_t*** list) {
 	free(old);
 }
 
-static void ms_strcpy(char* dest, const char* src) { memcpy(dest, src, strlen(src) + 1); }
-
 MSDEF int ms_socket(const char* type) {
 	int sock = -1;
 	int v;
@@ -392,7 +390,7 @@ MSDEF char* ms_error(int code) {
 	int   i;
 	FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, 0, code, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (char*)&msg, 0, 0);
 	r = malloc(strlen((char*)msg) + 1);
-	ms_strcpy(r, (char*)msg);
+	strcpy(r, (char*)msg);
 	LocalFree(msg);
 
 	for(i = strlen(r) - 1; i >= 0; i--) {
@@ -403,7 +401,7 @@ MSDEF char* ms_error(int code) {
 #else
 	char* str = (char*)strerror(code);
 	r	  = malloc(strlen(str) + 1);
-	ms_strcpy(r, str);
+	strcpy(r, str);
 #endif
 	return r;
 }
