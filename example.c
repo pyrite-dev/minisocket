@@ -18,13 +18,14 @@ int main(int argc, char** argv) {
 		char*  buffer = malloc(1);
 		size_t sz     = 0;
 		char req[1024];
+		ms_buffer_t* buf;
 		buffer[0]     = 0;
 
 		req[0] = 0;
 		strcat(req, "GET / HTTP/1.0\r\nHost: ");
 		strcat(req, argv[1]);
 		strcat(req, "\r\nConnection: close\r\n\r\n");
-		ms_buffer_t* buf = ms_wbuffer(net, strlen(req));
+		buf = ms_wbuffer(net, strlen(req));
 		memcpy(buf->data, req, buf->size);
 
 		while(ms_step(net) == 0) {
