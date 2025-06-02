@@ -230,10 +230,7 @@ MSDEF int ms_socket(const char* type);
 #include <sys/ioctl.h>
 #include <unistd.h>
 #include <errno.h>
-
-#ifdef __OS2__
 #include <nerrno.h>
-#endif
 
 #define _MS_EINPROGRESS EINPROGRESS
 #define _MS_EINTR EINTR
