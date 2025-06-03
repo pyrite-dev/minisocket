@@ -190,6 +190,14 @@ MSDEF void ms_destroy(ms_interface_t* net);
 
 /**
  * @~english
+ * @brief Use prepared socket for minisocket interface
+ * @param sock Scoket
+ * @return Network interface
+ */
+MSDEF ms_interface_t* ms_user(int sock);
+
+/**
+ * @~english
  * @brief Connect to host using TCP/IP
  * @param host Host name
  * @param port Port
@@ -265,7 +273,7 @@ static void ms_close(int sock) {
 #endif
 }
 
-static ms_interface_t* ms_init(const char* host, int port) {
+static ms_interface_t* ms_init(int sock, const char* host, int port) {
 	struct hostent* h;
 	int		i;
 #ifdef _WIN32
@@ -274,36 +282,47 @@ static ms_interface_t* ms_init(const char* host, int port) {
 	ms_interface_t* r = malloc(sizeof(*r));
 	memset(r, 0, sizeof(*r));
 
+	if(sock == -1) {
 #ifdef _WIN32
-	s = ms_socket("tcp");
-	if(s == -1 && ms_get_error() == WSANOTINITIALISED) {
-		WSADATA wsa;
-		WSAStartup(MAKEWORD(1, 1), &wsa);
-	} else {
-		ms_close(s);
-	}
+		s = ms_socket("tcp");
+		if(s == -1 && ms_get_error() == WSANOTINITIALISED) {
+			WSADATA wsa;
+			WSAStartup(MAKEWORD(1, 1), &wsa);
+		} else {
+			ms_close(s);
+		}
 #endif
 
-	h = gethostbyname(host);
-	if(h == NULL || h->h_addrtype != AF_INET) {
-		free(r);
-		return NULL;
-	}
+		h = gethostbyname(host);
+		if(h == NULL || h->h_addrtype != AF_INET) {
+			free(r);
+			return NULL;
+		}
 
-	r->sock = -1;
+		r->sock = -1;
 
-	r->state = MS_STATE_PRE_CONNECT;
-	r->port	 = port;
+		r->state = MS_STATE_PRE_CONNECT;
+		r->port	 = port;
 
-	r->index = 0;
+		r->index = 0;
 
-	for(i = 0; h->h_addr_list[i] != NULL; i++);
-	r->address = malloc(sizeof(*r->address) * i);
-	r->length  = i;
+		for(i = 0; h->h_addr_list[i] != NULL; i++);
+		r->address = malloc(sizeof(*r->address) * i);
+		r->length  = i;
 
-	for(i = 0; h->h_addr_list[i] != NULL; i++) {
-		ms_u32 addr   = *(ms_u32*)h->h_addr_list[i];
-		r->address[i] = addr;
+		for(i = 0; h->h_addr_list[i] != NULL; i++) {
+			ms_u32 addr   = *(ms_u32*)h->h_addr_list[i];
+			r->address[i] = addr;
+		}
+	} else {
+		r->sock	 = sock;
+		r->state = MS_STATE_CONNECTED;
+
+		r->tcp	   = 0; /* cannot be sure */
+		r->port	   = 0; /* cannot be sure */
+		r->index   = 0;
+		r->length  = 0;
+		r->address = NULL;
 	}
 
 	r->wqueue = NULL;
@@ -456,15 +475,24 @@ MSDEF void ms_destroy(ms_interface_t* net) {
 		free(net->wqueue);
 	}
 
+	if(net->address != NULL) {
+		free(net->address);
+	}
+
 	ms_close(net->sock);
 
 	free(net);
 }
 
 MSDEF ms_interface_t* ms_tcp(const char* host, int port) {
-	ms_interface_t* r = ms_init(host, port);
+	ms_interface_t* r = ms_init(-1, host, port);
 	if(r != NULL) r->tcp = 1;
 
+	return r;
+}
+
+MSDEF ms_interface_t* ms_user(int sock) {
+	ms_interface_t* r = ms_init(sock, NULL, 0);
 	return r;
 }
 
