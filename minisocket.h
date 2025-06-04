@@ -81,12 +81,16 @@ enum MS_STATES {
  *
  * @var ms_buffer_t::seek
  * @brief Seek position
+ *
+ * @var ms_buffer_t::rw
+ * @brief `1` if write buffer, `0` if read buffer
  */
 typedef struct ms_buffer {
 	void*  data;
 	size_t size;
 	size_t _size;
 	int    seek;
+	int    rw;
 } ms_buffer_t;
 
 /**
@@ -109,11 +113,8 @@ typedef struct ms_buffer {
  * @var ms_interface_t::tcp
  * @brief `0` if UDP, otherwise TCP.
  *
- * @var ms_interface_t::wqueue
- * @brief Write buffer queue
- *
- * @var ms_interface_t::rqueue
- * @brief Read buffer queue
+ * @var ms_interface_t::queue
+ * @brief Buffer queue
  *
  * @var ms_interface_t::address
  * @brief List of address to try
@@ -132,8 +133,7 @@ typedef struct ms_interface {
 	int	      sock;
 	int	      state;
 	int	      tcp;
-	ms_buffer_t** wqueue;
-	ms_buffer_t** rqueue;
+	ms_buffer_t** queue;
 
 	ms_u32* address;
 	int	index;
@@ -325,8 +325,7 @@ static ms_interface_t* ms_init(int sock, const char* host, int port) {
 		r->address = NULL;
 	}
 
-	r->wqueue = NULL;
-	r->rqueue = NULL;
+	r->queue = NULL;
 
 	return r;
 }
@@ -440,7 +439,9 @@ MSDEF ms_buffer_t* ms_wbuffer(ms_interface_t* net, size_t size) {
 	r->_size       = size;
 	r->seek	       = 0;
 
-	ms_add_buffer(&net->wqueue, r);
+	r->rw = 1;
+
+	ms_add_buffer(&net->queue, r);
 
 	return r;
 }
@@ -452,27 +453,21 @@ MSDEF ms_buffer_t* ms_rbuffer(ms_interface_t* net, size_t size) {
 	r->_size       = size;
 	r->seek	       = 0;
 
-	ms_add_buffer(&net->rqueue, r);
+	r->rw = 0;
+
+	ms_add_buffer(&net->queue, r);
 
 	return r;
 }
 
 MSDEF void ms_destroy(ms_interface_t* net) {
-	if(net->rqueue != NULL) {
+	if(net->queue != NULL) {
 		int i;
-		for(i = 0; net->rqueue[i] != NULL; i++) {
-			free(net->rqueue[i]->data);
-			free(net->rqueue[i]);
+		for(i = 0; net->queue[i] != NULL; i++) {
+			free(net->queue[i]->data);
+			free(net->queue[i]);
 		}
-		free(net->rqueue);
-	}
-	if(net->wqueue != NULL) {
-		int i;
-		for(i = 0; net->wqueue[i] != NULL; i++) {
-			free(net->wqueue[i]->data);
-			free(net->wqueue[i]);
-		}
-		free(net->wqueue);
+		free(net->queue);
 	}
 
 	if(net->address != NULL) {
@@ -564,13 +559,15 @@ MSDEF int ms_step(ms_interface_t* net) {
 			net->state = MS_STATE_CONNECTED;
 		}
 	} else if(net->state == MS_STATE_CONNECTED) {
-		if(ms_buffer_length(&net->wqueue) > 0) {
-			net->state = MS_STATE_WRITE;
-		} else if(ms_buffer_length(&net->rqueue) > 0) {
-			net->state = MS_STATE_READ;
+		if(ms_buffer_length(&net->queue) > 0) {
+			if(net->queue[0]->rw == 1) {
+				net->state = MS_STATE_WRITE;
+			} else if(net->queue[0]->rw == 0) {
+				net->state = MS_STATE_READ;
+			}
 		}
 	} else if(net->state == MS_STATE_WRITE) {
-		ms_buffer_t* buf = net->wqueue[0];
+		ms_buffer_t* buf = net->queue[0];
 		int	     s	 = send(net->sock, (unsigned char*)buf->data + buf->seek, buf->_size - buf->seek, 0);
 		int	     r	 = 0;
 		if(s < 0) r = ms_get_error();
@@ -584,15 +581,15 @@ MSDEF int ms_step(ms_interface_t* net) {
 	} else if(net->state == MS_STATE_WRITE_COMPLETE || net->state == MS_STATE_WRITE_PART) {
 		net->state = MS_STATE_AFTER_WRITE;
 	} else if(net->state == MS_STATE_AFTER_WRITE) {
-		int st = net->wqueue[0]->seek != net->wqueue[0]->_size ? MS_STATE_FAILED_WRITE : MS_STATE_CONNECTED;
+		int st = net->queue[0]->seek != net->queue[0]->_size ? MS_STATE_FAILED_WRITE : MS_STATE_CONNECTED;
 
-		free(net->wqueue[0]->data);
-		free(net->wqueue[0]);
+		free(net->queue[0]->data);
+		free(net->queue[0]);
 
-		ms_buffer_delete(&net->wqueue);
+		ms_buffer_delete(&net->queue);
 		net->state = st;
 	} else if(net->state == MS_STATE_READ) {
-		ms_buffer_t* buf = net->rqueue[0];
+		ms_buffer_t* buf = net->queue[0];
 		int	     s	 = recv(net->sock, (unsigned char*)buf->data + buf->seek, buf->_size - buf->seek, 0);
 		int	     r	 = 0;
 		if(s < 0) r = ms_get_error();
@@ -606,12 +603,12 @@ MSDEF int ms_step(ms_interface_t* net) {
 	} else if(net->state == MS_STATE_READ_COMPLETE || net->state == MS_STATE_READ_PART) {
 		net->state = MS_STATE_AFTER_READ;
 	} else if(net->state == MS_STATE_AFTER_READ) {
-		int st = net->rqueue[0]->seek != net->rqueue[0]->_size ? MS_STATE_FAILED_READ : MS_STATE_CONNECTED;
+		int st = net->queue[0]->seek != net->queue[0]->_size ? MS_STATE_FAILED_READ : MS_STATE_CONNECTED;
 
-		free(net->rqueue[0]->data);
-		free(net->rqueue[0]);
+		free(net->queue[0]->data);
+		free(net->queue[0]);
 
-		ms_buffer_delete(&net->rqueue);
+		ms_buffer_delete(&net->queue);
 		net->state = st;
 	}
 	return 0;
