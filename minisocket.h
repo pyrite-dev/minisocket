@@ -213,6 +213,13 @@ MSDEF ms_interface_t* ms_tcp(const char* host, int port);
  */
 MSDEF int ms_socket(const char* type);
 
+/**
+ * @~english
+ * @brief Make socket non-blocking
+ * @param sock Socket
+ */
+MSDEF void ms_non_block(int sock);
+
 #ifdef MINISOCKET_IMPLEMENTATION
 
 #ifdef _WIN32
@@ -254,7 +261,7 @@ MSDEF int ms_socket(const char* type);
 
 #define _MS_IS_FINE_ERROR(x) ((x) == _MS_EWOULDBLOCK || (x) == _MS_EINPROGRESS)
 
-static void ms_non_block(int sock) {
+void ms_non_block(int sock) {
 	/* TODO: what is difference between this and fcntl O_NONBLOCK/O_NDELAY? */
 #ifdef _WIN32
 	u_long val = 1;
